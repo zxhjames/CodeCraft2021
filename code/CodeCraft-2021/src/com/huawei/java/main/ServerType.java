@@ -12,27 +12,31 @@ package com.huawei.java.main;
 public class ServerType implements Comparable<ServerType> {
     Integer id; // 服务器的唯一id
     String type; //型号
-    Integer cpuNum;  //cpu核数
-    Integer memory; // 内存大小
+    Integer AcpuNum;
+    Integer Amemory;
+    Integer BcpuNum;
+    Integer Bmemory;
     Integer machineConsume; // 硬件消耗
     Integer dayConsume; // 每日消耗成本
     VirtualType Anode; // A结点虚拟机
     VirtualType Bnode; // B结点虚拟机
 
-    public ServerType(String type, Integer cpuNum, Integer memory, Integer machineConsume, Integer dayConsume) {
+    public ServerType(String type, Integer acpuNum, Integer amemory, Integer bcpuNum, Integer bmemory, Integer machineConsume, Integer dayConsume) {
         this.type = type;
-        this.cpuNum = cpuNum;
-        this.memory = memory;
+        AcpuNum = acpuNum;
+        Amemory = amemory;
+        BcpuNum = bcpuNum;
+        Bmemory = bmemory;
         this.machineConsume = machineConsume;
         this.dayConsume = dayConsume;
     }
 
-    public ServerType(String type, Integer cpuNum, Integer memory, Integer machineConsume, Integer dayConsume, VirtualType anode, VirtualType bnode) {
+    public ServerType(String type, Integer acpuNum, Integer amemory, Integer bcpuNum, Integer bmemory, VirtualType anode, VirtualType bnode) {
         this.type = type;
-        this.cpuNum = cpuNum;
-        this.memory = memory;
-        this.machineConsume = machineConsume;
-        this.dayConsume = dayConsume;
+        AcpuNum = acpuNum;
+        Amemory = amemory;
+        BcpuNum = bcpuNum;
+        Bmemory = bmemory;
         Anode = anode;
         Bnode = bnode;
     }
@@ -40,14 +44,18 @@ public class ServerType implements Comparable<ServerType> {
     @Override
     public String toString() {
         return "ServerType{" +
-                "type='" + type + '\'' +
-                ", cpuNum=" + cpuNum +
-                ", memory=" + memory +
+                "id=" + id +
+                ", type='" + type + '\'' +
+                ", AcpuNum=" + AcpuNum +
+                ", Amemory=" + Amemory +
+                ", BcpuNum=" + BcpuNum +
+                ", Bmemory=" + Bmemory +
                 ", machineConsume=" + machineConsume +
                 ", dayConsume=" + dayConsume +
+                ", Anode=" + Anode +
+                ", Bnode=" + Bnode +
                 '}';
     }
-
 
     @Override
     public int compareTo(ServerType o) {
@@ -67,12 +75,9 @@ public class ServerType implements Comparable<ServerType> {
     }
 
     public Integer getCpuNum() {
-        return cpuNum;
+        return this.AcpuNum + this.BcpuNum;
     }
 
-    public Integer getMemory() {
-        return memory;
-    }
 
     public Integer getMachineConsume() {
         return machineConsume;
