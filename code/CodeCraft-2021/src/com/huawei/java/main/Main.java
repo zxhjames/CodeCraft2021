@@ -15,36 +15,38 @@ public class Main {
         Scanner in = new Scanner(System.in);
         int N,M,T,R;
         List<ServerType> serverTypeList = new ArrayList<>();  // 用于采购的服务器类型数量
-        List<VirtualType> virtualTypeList = new ArrayList<>();
-        StringBuilder stringBuilder = new StringBuilder();
-
+        List<VirtualType> virtualTypeList = new ArrayList<>(); // 用于使用的虚拟机
+        StringBuilder stringBuilder = new StringBuilder(); // 结果集合
         List<ServerType> ECS = new ArrayList<>(); // 已有的ECS组
         Map<String,ServerType> ECSMAP = new HashMap<>(); // 用于存储虚拟机id与ECS的映射
 
+
         N = Integer.parseInt(in.nextLine());
+
+        // 读取服务器信息
         for (int i = 0; i < N; ++i) {
             String str = in.nextLine();
             serverTypeList.add(SplitServerTypeline(str));
         }
 
-        //List<ServerType> serverTypes = serverTypeList.stream().
-        //        sorted(Comparator.comparing(ServerType::getCpuNum)).collect(Collectors.toList());
-
-        // 读取M行的每一种类型的虚拟机
+        // 读取虚拟机信息
         M = Integer.parseInt(in.nextLine());
         for (int i=0;i<M;++i) {
             String str = in.nextLine();
             virtualTypeList.add(SplitVirtualTypeline(str));
         }
 
-        // 列表转为map (key->Type Value->VirtualType）各种种类的虚拟机
+        List<ServerType> serverTypes = serverTypeList.stream().
+                sorted(Comparator.comparing(a -> a.AcpuNum + a.BcpuNum,Comparator.reverseOrder())).collect(Collectors.toList());
+
+        // 虚拟机信息转map
         Map<String,VirtualType> virtualTypeMap = virtualTypeList.stream().collect(Collectors.toMap(VirtualType::getType, Function.identity()));
         // 请求数据
         T = Integer.parseInt(in.nextLine());
         for (int i = 0; i< T;++i) {
             R = Integer.parseInt(in.nextLine());
             // 每一天的调度信息
-            Scheduler(in,stringBuilder,R,virtualTypeMap,serverTypeList,ECS,ECSMAP);
+            Scheduler(in,stringBuilder,R,virtualTypeMap,serverTypes,ECS,ECSMAP);
         }
         System.out.println(stringBuilder.toString());
         in.close();
@@ -55,7 +57,7 @@ public class Main {
 
 
     /**
-     * 调度策略
+     * 调度器
      * @param in 输入的请求
      * @param stringBuilder 结果
      * @param count 请求数量
@@ -83,6 +85,12 @@ public class Main {
         // 每一天的部署顺序
         List<DeployInfo> deployInfoList = new ArrayList<>();
 
+        // 每一天删除的结点的标记vm
+       // Map<ServerType,Integer> DelVm = new HashMap<>();
+
+        // 是否购买服务器
+        boolean isfit = false;
+
         // main loop
         for (int i = 0;i<count; ++i) {
             // 接受输入
@@ -93,54 +101,52 @@ public class Main {
 
                     // 检索虚拟机参数表
                     VirtualType v = virtualTypeMap.get(result[1]);
-
                     // 重新分配
                     VirtualType virtualType = new VirtualType(v.type,v.cpuNum,v.memory,v.isDeployWithTowNode);
-
                     virtualType.id = result[2];
+                    isfit = false;
 
-                    // 判断是否此次操作还需要购买
-                    boolean isfit = false;
-
-
+                    // 首先去已有的服务器上寻找空间
                     for (int k=0;k<ECS.size();++k) {
                         ServerType serverType = ECS.get(k);
 
-                        // 单点部署试探
+                        // 单点部署试探 没有即创建
                         if (virtualType.isDeployWithTowNode == 0) {
-                            if (serverType.Anode == null && serverType.AcpuNum >= virtualType.cpuNum && serverType.Amemory >= virtualType.memory) {
-                                serverType.Anode = virtualType;
+                            if (serverType.AcpuNum >= virtualType.cpuNum && serverType.Amemory >= virtualType.memory) {
+                                serverType.Anodes.add(virtualType);
                                 serverType.AcpuNum -= virtualType.cpuNum;
                                 serverType.Amemory -= virtualType.memory;
-                                deployInfoList.add(new DeployInfo(serverType,"A"));
+                                deployInfoList.add(new DeployInfo(virtualType.id,serverType,"A"));
                                 ECSMAP.put(virtualType.id,serverType);
                                 // 移除这个虚拟机结点
                                 isfit = true;
                                 break;
                             }
-                            if (serverType.Bnode == null && serverType.BcpuNum >= virtualType.cpuNum && serverType.Bmemory >= virtualType.memory) {
-                                serverType.Bnode = virtualType;
+                            if (serverType.BcpuNum >= virtualType.cpuNum && serverType.Bmemory >= virtualType.memory) {
+                                serverType.Bnodes.add(virtualType);
                                 serverType.BcpuNum -= virtualType.cpuNum;
                                 serverType.Bmemory -= virtualType.memory;
-                                deployInfoList.add(new DeployInfo(serverType,"B"));
+                                deployInfoList.add(new DeployInfo(virtualType.id,serverType,"B"));
                                 ECSMAP.put(virtualType.id,serverType);
                                 isfit = true;
                                 break;
                             }
                         }
 
-                        // 多点部署
+                        // 多点部署 没有即创建
                         if (virtualType.isDeployWithTowNode == 1 ) {
-                            if (serverType.Anode == null && serverType.Bnode == null && serverType.AcpuNum  >= virtualType.cpuNum / 2 && serverType.Amemory  >= virtualType.memory / 2) {
+                            if (serverType.AcpuNum  >= virtualType.cpuNum / 2 && serverType.Amemory  >= virtualType.memory / 2
+                                    && serverType.BcpuNum >= virtualType.cpuNum / 2 && serverType.Bmemory >= virtualType.memory / 2
+                            ) {
                                 virtualType.cpuNum /= 2;
                                 virtualType.memory /= 2;
-                                serverType.Anode = virtualType;
-                                serverType.Bnode = virtualType;
+                                serverType.Anodes.add(virtualType);
+                                serverType.Bnodes.add(virtualType);
                                 serverType.AcpuNum -= virtualType.cpuNum;
                                 serverType.Amemory -= virtualType.memory;
-                                serverType.BcpuNum = serverType.AcpuNum;
-                                serverType.Bmemory = serverType.Amemory;
-                                deployInfoList.add(new DeployInfo(serverType,""));
+                                serverType.BcpuNum -= virtualType.cpuNum;
+                                serverType.Bmemory -= virtualType.memory;
+                                deployInfoList.add(new DeployInfo(virtualType.id,serverType,""));
                                 ECSMAP.put(virtualType.id,serverType);
                                 isfit = true;
                                 break;
@@ -159,11 +165,13 @@ public class Main {
                             // 申请一台新机器
                             ServerType serverTypenode = serverTypes.get(k);
 
-                            // 加入当日机器组
-
                             // 双结点分配算法
                             if (virtualType.isDeployWithTowNode == 1) {
-                                if (virtualType.cpuNum / 2 <= serverTypenode.AcpuNum && virtualType.memory / 2 <= serverTypenode.Amemory) {
+                                if (virtualType.cpuNum / 2 <= serverTypenode.AcpuNum
+                                        && virtualType.memory / 2 <= serverTypenode.Amemory
+                                        && virtualType.cpuNum / 2 <= serverTypenode.BcpuNum
+                                        && virtualType.memory / 2 <= serverTypenode.Bmemory) {
+
                                     virtualType.cpuNum /= 2;
                                     virtualType.memory /= 2;
                                     serverType = new ServerType(serverTypenode.type,
@@ -171,8 +179,8 @@ public class Main {
                                             serverTypenode.Amemory - virtualType.memory,
                                             serverTypenode.BcpuNum - virtualType.cpuNum,
                                             serverTypenode.Bmemory - virtualType.memory,
-                                            virtualType,
-                                            virtualType);
+                                            new ArrayList<VirtualType>(),
+                                            new ArrayList<VirtualType>());
                                 }
                             }
 
@@ -180,13 +188,15 @@ public class Main {
                             // 单结点分配算法 默认分配A node
                             if (virtualType.isDeployWithTowNode == 0) {
                                 if (virtualType.cpuNum <= serverTypenode.AcpuNum && virtualType.memory <= serverTypenode.Amemory) {
+                                    List<VirtualType> virtualTypes = new ArrayList<>();
+                                    virtualTypes.add(virtualType);
                                     serverType = new ServerType(serverTypenode.type,
                                             serverTypenode.AcpuNum - virtualType.cpuNum,
                                             serverTypenode.Amemory - virtualType.memory,
                                             serverTypenode.BcpuNum,
                                             serverTypenode.Bmemory,
-                                            virtualType,
-                                            null);
+                                            virtualTypes,
+                                            new ArrayList<VirtualType>());
                                 }
                             }
 
@@ -210,17 +220,15 @@ public class Main {
                                 }
 
                                 if (virtualType.isDeployWithTowNode == 1) {
-                                    deployInfoList.add(new DeployInfo(serverType,""));
+                                    deployInfoList.add(new DeployInfo(virtualType.id,serverType,""));
                                 }else if(virtualType.isDeployWithTowNode == 0) {
-                                    deployInfoList.add(new DeployInfo(serverType,"A"));
+                                    deployInfoList.add(new DeployInfo(virtualType.id,serverType,"A"));
                                 }
 
                                 ECS.add(DayECSList.get(DayECSList.size() - 1));
                                 // 存储虚拟机ID => 服务器映射 注意 它只是id变了
                                 ECSMAP.put(virtualType.id,serverType);
                                 break;
-                          //  System.out.println("null!!!!");
-
                         }
                     }
                 } else if("del".equals(result[0])) {
@@ -230,89 +238,92 @@ public class Main {
                     // 去ECS里面找
                     if (ECSMAP.get(delId) != null) {
                         ServerType serverType = ECSMAP.get(delId);
+                        // 去服务器上删除掉这个虚拟机，并且回收资源
 
-                        // 只有一个为空，那肯定存在一个虚拟机结点
-                        if (serverType.Anode != null && serverType.Bnode == null) {
-                            // 释放A结点
-                            serverType.AcpuNum += serverType.Anode.cpuNum;serverType.Amemory += serverType.Anode.memory;serverType.Anode = null;
-                            ECSMAP.remove(delId);
-                            // 同时在列表中移除部署信息
-                            deployInfoList.stream()
-                                    .filter(producer -> producer.serverType.id.equals(serverType.id) && producer.node.equals("A"))
-                                    .findFirst()
-                                    .map(p -> {
-                                        deployInfoList.remove(p);
-                                        return p;
-                                    });
+                        // 确定这个虚拟机是双结点还是单结点
+                        boolean isSimple = true;
+                        boolean isA = false;
 
-                            continue;
-                        }else if(serverType.Anode == null && serverType.Bnode != null) {
-                            // 释放B
-                            serverType.BcpuNum += serverType.Bnode.cpuNum;serverType.Bmemory += serverType.Bnode.memory;serverType.Bnode = null;
-                            ECSMAP.remove(delId);
-                            // 同时在列表中移除部署信息
-                            deployInfoList.stream()
-                                    .filter(producer -> producer.serverType.id.equals(serverType.id) && producer.node.equals("B"))
-                                    .findFirst()
-                                    .map(p -> {
-                                        deployInfoList.remove(p);
-                                        return p;
-                                    });
-
-                            continue;
-                        }else if(serverType.Anode != null && serverType.Bnode != null) {
-                            // 两个都不为空，可能其中一个是虚拟机结点，也可能两个都是
-                            if (serverType.Anode.isDeployWithTowNode == 1 || serverType.Bnode.isDeployWithTowNode == 1) {
-                                // 肯定是双结点 要回收
-                                serverType.AcpuNum = serverType.AcpuNum + serverType.Anode.cpuNum ;
-                                serverType.Amemory = serverType.Amemory + serverType.Bnode.memory ;
-                                serverType.BcpuNum = serverType.AcpuNum;
-                                serverType.Bmemory = serverType.Amemory;
-                                serverType.Anode = serverType.Bnode = null;
-                                ECSMAP.remove(delId);
-                                // 同时在列表中移除部署信息
-                                deployInfoList.stream()
-                                        .filter(producer -> producer.serverType.id.equals(serverType.id) && producer.node.equals(""))
-                                        .findFirst()
-                                        .map(p -> {
-                                            deployInfoList.remove(p);
-                                            return p;
-                                        });
-
-                                continue;
-                            }else if (serverType.Anode.isDeployWithTowNode == 0 && delId.equals(serverType.Anode.id)) {
-                                serverType.AcpuNum += serverType.Anode.cpuNum;
-                                serverType.Amemory += serverType.Anode.memory;
-                                serverType.Anode = null;
-                                ECSMAP.remove(delId);
-                                // 同时在列表中移除部署信息
-                                deployInfoList.stream()
-                                        .filter(producer -> producer.serverType.id.equals(serverType.id) && producer.node.equals("A"))
-                                        .findFirst()
-                                        .map(p -> {
-                                            deployInfoList.remove(p);
-                                            return p;
-                                        });
-                                continue;
-                            }else if (serverType.Bnode.isDeployWithTowNode == 0 && delId.equals(serverType.Bnode.id)) {
-                                serverType.BcpuNum += serverType.Bnode.cpuNum;
-                                serverType.Bmemory += serverType.Bnode.memory;
-                                serverType.Bnode = null;
-                                ECSMAP.remove(delId);
-                                // 同时在列表中移除部署信息
-                                deployInfoList.stream()
-                                        .filter(producer -> producer.serverType.id.equals(serverType.id) && producer.node.equals("B"))
-                                        .findFirst()
-                                        .map(p -> {
-                                            deployInfoList.remove(p);
-                                            return p;
-                                        });
-                                continue;
+                        // 先去A结点找
+                        for (int k = 0;k<serverType.Anodes.size();++k) {
+                            if (serverType.Anodes.get(k).id.equals(delId)) {
+                                if (serverType.Anodes.get(k).isDeployWithTowNode == 1) {
+                                    isSimple = false;
+                                }
+                                serverType.AcpuNum += serverType.Anodes.get(k).cpuNum;
+                                serverType.Amemory += serverType.Anodes.get(k).memory;
+                                serverType.Anodes.remove(k);
+                                isA = true;
+                                break;
                             }
                         }
+
+                        // 找不到就去B里找
+                        if (!isA) {
+                            for (int k = 0;k<serverType.Bnodes.size();++k) {
+                                if (serverType.Bnodes.get(k).id.equals(delId)) {
+                                    serverType.BcpuNum += serverType.Bnodes.get(k).cpuNum;
+                                    serverType.Bmemory += serverType.Bnodes.get(k).memory;
+                                    serverType.Bnodes.remove(k);
+                                    break;
+                                }
+                            }
+                        }
+
+                        // 如果是双节点就一起删除
+                        if (!isSimple) {
+                            // 删除B结点
+                            for (int k =0;k<serverType.Bnodes.size();++k) {
+                                if (serverType.Bnodes.get(k).id.equals(delId)) {
+                                    serverType.BcpuNum += serverType.Bnodes.get(k).cpuNum;
+                                    serverType.Bmemory += serverType.Bnodes.get(k).memory;
+                                    serverType.Bnodes.remove(k);
+                                    break;
+                                }
+                            }
+                        }
+
+
+                        ECSMAP.remove(delId);
+                        // 移除部署信息
+                        if (!isSimple) {
+                            deployInfoList.stream()
+                                    .filter(producer -> producer.serverType.id.equals(serverType.id) &&
+                                             producer.vmid.equals(delId) &&
+                                            (producer.node.equals("")))
+                                    .findFirst()
+                                    .map(p -> {
+                                        deployInfoList.remove(p);
+                                        return p;
+                                    });
+                        }else if (isA){
+                            deployInfoList.stream()
+                                    .filter(producer -> producer.serverType.id.equals(serverType.id) &&
+                                            producer.vmid.equals(delId) &&
+                                            producer.node.equals("A") )
+                                    .findFirst()
+                                    .map(p -> {
+                                        deployInfoList.remove(p);
+                                        return p;
+                                    });
+
+                        }else if(!isA) {
+                            deployInfoList.stream()
+                                    .filter(producer -> producer.serverType.id.equals(serverType.id) &&
+                                            producer.vmid.equals(delId) &&
+                                            producer.node.equals("B") )
+                                    .findFirst()
+                                    .map(p -> {
+                                        deployInfoList.remove(p);
+                                        return p;
+                                    });
+                        }
+
                     }
                 }
         }
+
+        // 每天结束之后删除部署消息中已经失效的
 
 
         buycount = buycount + DayECSList.size();
@@ -322,12 +333,16 @@ public class Main {
             stringBuilder.append("(" + key + "," + buyDetail.get(key) + ")\n");
         }
         stringBuilder.append("(migration,0)\n");
+
+        // 这里有del的就不输出
         for (DeployInfo key : deployInfoList) {
-            if (("").equals(key.node)) {
-                stringBuilder.append("("+key.serverType.id+")\n");
-            }else {
-                stringBuilder.append("(" + key.serverType.id +"," + key.node + ")\n");
-            }
+//            if (DelVm.get(key.serverType) != null ) {
+                if (("").equals(key.node)) {
+                    stringBuilder.append("("+key.serverType.id+")\n");
+                }else {
+                    stringBuilder.append("(" + key.serverType.id +"," + key.node + ")\n");
+                }
+//            }
         }
     }
 

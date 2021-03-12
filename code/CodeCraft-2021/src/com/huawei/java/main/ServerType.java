@@ -1,4 +1,5 @@
 package com.huawei.java.main;
+import java.util.List;
 
 /**
  * @program: SDK_java
@@ -18,8 +19,12 @@ public class ServerType implements Comparable<ServerType> {
     Integer Bmemory;
     Integer machineConsume; // 硬件消耗
     Integer dayConsume; // 每日消耗成本
-    VirtualType Anode; // A结点虚拟机
-    VirtualType Bnode; // B结点虚拟机
+
+    //todo 修改
+    List<VirtualType> Anodes; // A结点集群
+    List<VirtualType> Bnodes; // B结点集群
+//    VirtualType Anode; // A结点虚拟机
+//    VirtualType Bnode; // B结点虚拟机
 
     public ServerType(String type, Integer acpuNum, Integer amemory, Integer bcpuNum, Integer bmemory, Integer machineConsume, Integer dayConsume) {
         this.type = type;
@@ -31,15 +36,17 @@ public class ServerType implements Comparable<ServerType> {
         this.dayConsume = dayConsume;
     }
 
-    public ServerType(String type, Integer acpuNum, Integer amemory, Integer bcpuNum, Integer bmemory, VirtualType anode, VirtualType bnode) {
+    public ServerType(String type, Integer acpuNum, Integer amemory, Integer bcpuNum, Integer bmemory, List<VirtualType> anodes, List<VirtualType> bnodes) {
         this.type = type;
         AcpuNum = acpuNum;
         Amemory = amemory;
         BcpuNum = bcpuNum;
         Bmemory = bmemory;
-        Anode = anode;
-        Bnode = bnode;
+        Anodes = anodes;
+        Bnodes = bnodes;
     }
+
+
 
     @Override
     public String toString() {
@@ -52,38 +59,15 @@ public class ServerType implements Comparable<ServerType> {
                 ", Bmemory=" + Bmemory +
                 ", machineConsume=" + machineConsume +
                 ", dayConsume=" + dayConsume +
-                ", Anode=" + Anode +
-                ", Bnode=" + Bnode +
+                ", Anodes=" + Anodes +
+                ", Bnodes=" + Bnodes +
                 '}';
     }
+
 
     @Override
     public int compareTo(ServerType o) {
         return this.machineConsume - o.machineConsume;
     }
 
-    public VirtualType getAnode() {
-        return Anode;
-    }
-
-    public VirtualType getBnode() {
-        return Bnode;
-    }
-
-    public String getType() {
-        return type;
-    }
-
-    public Integer getCpuNum() {
-        return this.AcpuNum + this.BcpuNum;
-    }
-
-
-    public Integer getMachineConsume() {
-        return machineConsume;
-    }
-
-    public Integer getDayConsume() {
-        return dayConsume;
-    }
 }
