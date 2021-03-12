@@ -27,8 +27,8 @@ public class Main {
             serverTypeList.add(SplitServerTypeline(str));
         }
 
-//        List<ServerType> serverTypes = serverTypeList.stream().
-//                sorted(Comparator.comparing(ServerType::getCpuNum)).collect(Collectors.toList());
+        //List<ServerType> serverTypes = serverTypeList.stream().
+        //        sorted(Comparator.comparing(ServerType::getCpuNum)).collect(Collectors.toList());
 
         // 读取M行的每一种类型的虚拟机
         M = Integer.parseInt(in.nextLine());
@@ -316,15 +316,6 @@ public class Main {
 
 
         buycount = buycount + DayECSList.size();
-       // System.out.println(buycount);
-        // 今天的任务已经分配完毕 注意是每一个请求 需要完成 1.添加新的服务器，添加部署信息，添加新的购买数量，重置
-//        if (DayECSList.size() > 0) {
-//            ECS.addAll(DayECSList);
-//            buycount = buycount + DayECSList.size();
-//        }
-
-
-
         // 对所有请求进行资源规划
         stringBuilder.append("(purchase,"+buyDetail.size()+")\n");
         for (String key : buyDetail.keySet()) {
@@ -338,7 +329,6 @@ public class Main {
                 stringBuilder.append("(" + key.serverType.id +"," + key.node + ")\n");
             }
         }
-       // System.out.println("买了"+ DayECSList.size()+"台" + " " +deployInfoList.size());
     }
 
 }
