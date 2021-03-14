@@ -1,8 +1,5 @@
 package com.huawei.java.main;
-
-
 import java.io.*;
-import java.text.DecimalFormat;
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -21,13 +18,22 @@ public class Main {
         List<ServerType> ECS = new ArrayList<>(); // 已有的ECS组
         Map<String,ServerType> ECSMAP = new HashMap<>(); // 用于存储虚拟机id与ECS的映射
 
+//
+       // TreeMap<Float,String> ServerMaps = new TreeMap<>(); // 存储求出比例后的服务器信息
+//        float ServerMapsCenter ;
+      //  TreeMap<Float,String> VirtualMaps = new TreeMap<>(); // 存储求出比例后的虚拟机信息
+//        float VirtualMapsCenter;
+
+
 
         N = Integer.parseInt(in.nextLine());
+
         // 读取服务器信息
         for (int i = 0; i < N; ++i) {
             String str = in.nextLine();
             ServerType serverType = SplitServerTypeline(str);
             serverTypeList.add(serverType);
+          //  ServerMaps.put((float)serverType.AcpuNum / serverType.Amemory,serverType.type);
         }
 
 
@@ -35,11 +41,17 @@ public class Main {
         M = Integer.parseInt(in.nextLine());
         for (int i=0;i<M;++i) {
             String str = in.nextLine();
-            virtualTypeList.add(SplitVirtualTypeline(str));
+            VirtualType virtualType = SplitVirtualTypeline(str);
+            virtualTypeList.add(virtualType);
+          //  VirtualMaps.put((float)virtualType.cpuNum / virtualType.memory,virtualType.type);
         }
 
+
+
+
+        // 首先预排序
         List<ServerType> serverTypes = serverTypeList.stream().
-                sorted(Comparator.comparing(a -> a.AcpuNum * 0.5 + a.Amemory * 0.5,Comparator.reverseOrder())).collect(Collectors.toList());
+                sorted(Comparator.comparing(a ->  (a.AcpuNum+a.Amemory) ,Comparator.reverseOrder())).collect(Collectors.toList());
 
         // 虚拟机信息转map
         Map<String,VirtualType> virtualTypeMap = virtualTypeList.stream().collect(Collectors.toMap(VirtualType::getType, Function.identity()));
@@ -87,11 +99,12 @@ public class Main {
         // 每一天的部署顺序
         List<DeployInfo> deployInfoList = new ArrayList<>();
 
-        // 每一天删除的结点的标记vm
-       // Map<ServerType,Integer> DelVm = new HashMap<>();
 
         // 是否购买服务器
         boolean isfit = false;
+        List<ServerRespurce> serverRespurceList;
+        //Map<ServerRespurce,ServerType> serverRespurceServerTypeMap;
+        int leftcpu,leftmem,rightcpu,rightmem;
 
         // main loop
         for (int i = 0;i<count; ++i) {
@@ -107,55 +120,180 @@ public class Main {
                     VirtualType virtualType = new VirtualType(v.type,v.cpuNum,v.memory,v.isDeployWithTowNode);
                     virtualType.id = result[2];
                     isfit = false;
-
+                    serverRespurceList = new ArrayList<>();
+                    // serverRespurceServerTypeMap = new HashMap<>();
                     // 首先去已有的服务器上寻找空间
-                    for (int k=0;k<ECS.size();++k) {
-                        ServerType serverType = ECS.get(k);
-
-                        // 单点部署试探 没有即创建
-                        if (virtualType.isDeployWithTowNode == 0) {
-                            if (serverType.AcpuNum >= virtualType.cpuNum && serverType.Amemory >= virtualType.memory) {
-                                serverType.Anodes.add(virtualType);
-                                serverType.AcpuNum -= virtualType.cpuNum;
-                                serverType.Amemory -= virtualType.memory;
-                                deployInfoList.add(new DeployInfo(virtualType.id,serverType,"A"));
-                                ECSMAP.put(virtualType.id,serverType);
-                                // 移除这个虚拟机结点
-                                isfit = true;
-                                break;
-                            }
-                            if (serverType.BcpuNum >= virtualType.cpuNum && serverType.Bmemory >= virtualType.memory) {
-                                serverType.Bnodes.add(virtualType);
-                                serverType.BcpuNum -= virtualType.cpuNum;
-                                serverType.Bmemory -= virtualType.memory;
-                                deployInfoList.add(new DeployInfo(virtualType.id,serverType,"B"));
-                                ECSMAP.put(virtualType.id,serverType);
-                                isfit = true;
-                                break;
-                            }
-                        }
-
-                        // 多点部署 没有即创建
-                        if (virtualType.isDeployWithTowNode == 1 ) {
-                            if (serverType.AcpuNum  >= virtualType.cpuNum / 2 && serverType.Amemory  >= virtualType.memory / 2
-                                    && serverType.BcpuNum >= virtualType.cpuNum / 2 && serverType.Bmemory >= virtualType.memory / 2
-                            ) {
-                                virtualType.cpuNum /= 2;
-                                virtualType.memory /= 2;
-                                serverType.Anodes.add(virtualType);
-                                serverType.Bnodes.add(virtualType);
-                                serverType.AcpuNum -= virtualType.cpuNum;
-                                serverType.Amemory -= virtualType.memory;
-                                serverType.BcpuNum -= virtualType.cpuNum;
-                                serverType.Bmemory -= virtualType.memory;
-                                deployInfoList.add(new DeployInfo(virtualType.id,serverType,""));
-                                ECSMAP.put(virtualType.id,serverType);
-                                isfit = true;
-                                break;
-                            }
-                        }
-                        // 迁移算法 暂时不考虑
+                    // 之前是首次适应算法,现在改成最佳适应算法
+                    // 对已有的ECS进行排序:满足空间足够有可以达到最大利用
+//                   PriorityQueue<ServerRespurce> priorityQueue = new PriorityQueue<>();
+                    boolean isSingle ;
+                    if (virtualType.isDeployWithTowNode == 0 ) {
+                        isSingle = true;
+                    }else{
+                        isSingle = false;
                     }
+
+                   float virtualrate = (float) virtualType.cpuNum / virtualType.memory;
+
+
+                    if (isSingle) {
+                        for (int k =0;k<ECS.size();++k) {
+                            ServerType serverType = ECS.get(k);
+                            leftcpu = serverType.AcpuNum - virtualType.cpuNum;
+                            leftmem = serverType.Amemory - virtualType.memory;
+                            rightcpu = serverType.BcpuNum - virtualType.cpuNum;
+                            rightmem = serverType.Bmemory - virtualType.memory;
+                            // 塞入最合适的结点放置
+                            // 如果两个结点有一个资源超过限制,那么直接就舍弃,否则就单独选择cpu和mem综合来说最小的那一个,如果相差很大,综合选择最相似的
+                            if ((leftcpu >= 0 && leftmem >=0) && (rightcpu >= 0 && rightmem >= 0)) {
+                                if (leftcpu <= rightcpu && leftmem <= rightmem) {
+                                    //serverRespurceServerTypeMap.put(new ServerRespurce(leftcpu,leftmem,"A"),serverType);
+                                   serverRespurceList.add(new ServerRespurce(leftcpu,leftmem, serverType,"A"));
+                                   continue;
+                                    //优先A
+                                }else if (rightcpu <= leftcpu && rightmem <= leftmem) {
+                                    //优先B
+                                    serverRespurceList.add(new ServerRespurce(rightcpu,rightmem,serverType,"B"));
+                                   // serverRespurceServerTypeMap.put(new ServerRespurce(rightcpu,rightmem,"B"),serverType);
+                                    continue;
+                                }else {
+                                    // 优先最接近的核
+                                    //boolean isA = Math.abs((float) leftcpu / leftmem - virtualrate) <= Math.abs((float) rightcpu / rightmem - virtualrate) ? true : false;
+                                    if (rightcpu >= leftcpu) {
+                                        serverRespurceList.add(new ServerRespurce(leftcpu,leftmem,serverType,"A"));
+                                    }else {
+                                        serverRespurceList.add(new ServerRespurce(rightcpu,rightmem,serverType,"B"));
+                                    //serverRespurceServerTypeMap.put(new ServerRespurce(leftcpu,leftmem,"A"),serverType);
+                                    }
+                                    continue;
+                                }
+                            }else if (leftcpu >= 0 && leftmem >= 0) {
+                                serverRespurceList.add(new ServerRespurce(leftcpu,leftmem,serverType,"A"));
+                                continue;
+                            }else if (rightcpu >= 0 && rightmem >= 0 ){
+                                serverRespurceList.add(new ServerRespurce(rightcpu,rightmem,serverType,"B"));
+                                continue;
+                            }
+                        }
+                    }else if (!isSingle){
+                        for (int k=0;k<ECS.size();++k) {
+                            ServerType serverType = ECS.get(k);
+                            leftcpu =serverType.AcpuNum - virtualType.cpuNum / 2;
+                            leftmem = serverType.Amemory - virtualType.memory / 2;
+                            rightcpu = serverType.BcpuNum - virtualType.cpuNum / 2;
+                            rightmem = serverType.Bmemory - virtualType.memory / 2;
+                            if ((leftcpu >= 0 && leftmem >=0) && (rightcpu >= 0 && rightmem >= 0)) {
+                                if (leftcpu >= rightcpu && leftmem >= rightmem) {
+                                    serverRespurceList.add(new ServerRespurce(rightcpu,rightmem,serverType,""));
+                                    //serverRespurceServerTypeMap.put(new ServerRespurce(rightcpu,rightmem,""),serverType);
+                                    continue;
+                                }else if (rightcpu >= leftcpu && rightmem >= leftmem) {
+                                    serverRespurceList.add(new ServerRespurce(leftcpu,leftmem,serverType,""));
+                                    //serverRespurceServerTypeMap.put(new ServerRespurce(leftcpu,leftmem,""),serverType);
+                                    continue;
+                                }else{
+                                    // 优先cpu
+                                    if (leftcpu >= rightcpu) {
+                                        serverRespurceList.add(new ServerRespurce(rightcpu,rightmem,serverType,""));
+                                        //serverRespurceServerTypeMap.put(new ServerRespurce(rightcpu,rightmem,""),serverType);
+                                    }else {
+                                        serverRespurceList.add(new ServerRespurce(leftcpu,leftmem,serverType,""));
+                                        //serverRespurceServerTypeMap.put(new ServerRespurce(leftcpu,leftmem,""),serverType);
+                                        continue;
+                                    }
+                                }
+                            }
+                        }
+                    }
+//
+//
+//
+//                    // 开始分配
+                    if (serverRespurceList.size() > 0) {
+                        ServerRespurce serverRespurce = serverRespurceList.get(0);
+//                        ServerRespurce serverRespurce = serverRespurceList.stream()
+//                                .sorted(Comparator.comparing(ServerRespurce::getMinCpu)
+//                                        .thenComparing(ServerRespurce::getMinMemory)).findFirst().orElse(null);
+                        ServerType serverType = serverRespurce.serverType;
+                        if(isSingle) {
+                            if ("A".equals(serverRespurce.loc)) {
+                                serverType.Anodes.add(virtualType);
+                                serverType.AcpuNum -= virtualType.cpuNum;
+                                serverType.Amemory -= virtualType.memory;
+                            }else if ("B".equals(serverRespurce.loc)) {
+                                serverType.Bnodes.add(virtualType);
+                                serverType.BcpuNum -= virtualType.cpuNum;
+                                serverType.Bmemory -= virtualType.memory;
+                            }
+                            deployInfoList.add(new DeployInfo(virtualType.id,serverType,serverRespurce.loc));
+                            ECSMAP.put(virtualType.id,serverType);
+                            // 移除这个虚拟机结点
+                            isfit = true;
+                        } else {
+                            virtualType.cpuNum /= 2;
+                            virtualType.memory /= 2;
+                            serverType.Anodes.add(virtualType);
+                            serverType.Bnodes.add(virtualType);
+                            serverType.AcpuNum -= virtualType.cpuNum;
+                            serverType.Amemory -= virtualType.memory;
+                            serverType.BcpuNum -= virtualType.cpuNum;
+                            serverType.Bmemory -= virtualType.memory;
+                            deployInfoList.add(new DeployInfo(virtualType.id,serverType,""));
+                            ECSMAP.put(virtualType.id,serverType);
+                            isfit = true;
+                        }
+                    }
+
+
+//
+//
+//                    for (int k=0;k<ECS.size();++k) {
+//                        ServerType serverType = ECS.get(k);
+//
+//                        // 单点部署试探 没有即创建
+//                        if (virtualType.isDeployWithTowNode == 0) {
+//                            if (serverType.AcpuNum >= virtualType.cpuNum && serverType.Amemory >= virtualType.memory) {
+//                                serverType.Anodes.add(virtualType);
+//                                serverType.AcpuNum -= virtualType.cpuNum;
+//                                serverType.Amemory -= virtualType.memory;
+//                                deployInfoList.add(new DeployInfo(virtualType.id,serverType,"A"));
+//                                ECSMAP.put(virtualType.id,serverType);
+//                                // 移除这个虚拟机结点
+//                                isfit = true;
+//                                break;
+//                            }
+//                            if (serverType.BcpuNum >= virtualType.cpuNum && serverType.Bmemory >= virtualType.memory) {
+//                                serverType.Bnodes.add(virtualType);
+//                                serverType.BcpuNum -= virtualType.cpuNum;
+//                                serverType.Bmemory -= virtualType.memory;
+//                                deployInfoList.add(new DeployInfo(virtualType.id,serverType,"B"));
+//                                ECSMAP.put(virtualType.id,serverType);
+//                                isfit = true;
+//                                break;
+//                            }
+//                        }
+//
+//                        // 多点部署 没有即创建
+//                        if (virtualType.isDeployWithTowNode == 1 ) {
+//                            if (serverType.AcpuNum  >= virtualType.cpuNum / 2 && serverType.Amemory  >= virtualType.memory / 2
+//                                    && serverType.BcpuNum >= virtualType.cpuNum / 2 && serverType.Bmemory >= virtualType.memory / 2
+//                            ) {
+//                                virtualType.cpuNum /= 2;
+//                                virtualType.memory /= 2;
+//                                serverType.Anodes.add(virtualType);
+//                                serverType.Bnodes.add(virtualType);
+//                                serverType.AcpuNum -= virtualType.cpuNum;
+//                                serverType.Amemory -= virtualType.memory;
+//                                serverType.BcpuNum -= virtualType.cpuNum;
+//                                serverType.Bmemory -= virtualType.memory;
+//                                deployInfoList.add(new DeployInfo(virtualType.id,serverType,""));
+//                                ECSMAP.put(virtualType.id,serverType);
+//                                isfit = true;
+//                                break;
+//                            }
+//                        }
+//                        // 迁移算法 暂时不考虑
+//                    }
 
 
 
@@ -233,7 +371,10 @@ public class Main {
                                 break;
                         }
                     }
-                } else if("del".equals(result[0])) {
+                }
+
+
+                if("del".equals(result[0])) {
                     // 删除虚拟机结点,去已有的ECS组里面删除
                     String delId = result[1];
 
