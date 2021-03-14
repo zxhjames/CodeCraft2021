@@ -2,6 +2,7 @@ package com.huawei.java.main;
 
 
 import java.io.*;
+import java.text.DecimalFormat;
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -22,12 +23,13 @@ public class Main {
 
 
         N = Integer.parseInt(in.nextLine());
-
         // 读取服务器信息
         for (int i = 0; i < N; ++i) {
             String str = in.nextLine();
-            serverTypeList.add(SplitServerTypeline(str));
+            ServerType serverType = SplitServerTypeline(str);
+            serverTypeList.add(serverType);
         }
+
 
         // 读取虚拟机信息
         M = Integer.parseInt(in.nextLine());
@@ -37,7 +39,7 @@ public class Main {
         }
 
         List<ServerType> serverTypes = serverTypeList.stream().
-                sorted(Comparator.comparing(a -> a.AcpuNum + a.BcpuNum,Comparator.reverseOrder())).collect(Collectors.toList());
+                sorted(Comparator.comparing(a -> a.AcpuNum * 0.5 + a.Amemory * 0.5,Comparator.reverseOrder())).collect(Collectors.toList());
 
         // 虚拟机信息转map
         Map<String,VirtualType> virtualTypeMap = virtualTypeList.stream().collect(Collectors.toMap(VirtualType::getType, Function.identity()));

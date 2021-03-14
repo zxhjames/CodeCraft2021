@@ -70,4 +70,83 @@ public class ServerType implements Comparable<ServerType> {
         return this.machineConsume - o.machineConsume;
     }
 
+    public Integer getId() {
+        return id;
+    }
+
+    public void setId(Integer id) {
+        this.id = id;
+    }
+
+    public String getType() {
+        return type;
+    }
+
+    public void setType(String type) {
+        this.type = type;
+    }
+
+    public Integer getAcpuNum() {
+        return AcpuNum;
+    }
+
+    public void setAcpuNum(Integer acpuNum) {
+        AcpuNum = acpuNum;
+    }
+
+    public Integer getAmemory() {
+        return Amemory;
+    }
+
+    public void setAmemory(Integer amemory) {
+        Amemory = amemory;
+    }
+
+    public Integer getBcpuNum() {
+        return BcpuNum;
+    }
+
+    public void setBcpuNum(Integer bcpuNum) {
+        BcpuNum = bcpuNum;
+    }
+
+    public Integer getBmemory() {
+        return Bmemory;
+    }
+
+    public void setBmemory(Integer bmemory) {
+        Bmemory = bmemory;
+    }
+
+    public Integer getMachineConsume() {
+        return machineConsume;
+    }
+
+    public void setMachineConsume(Integer machineConsume) {
+        this.machineConsume = machineConsume;
+    }
+
+    public Integer getDayConsume() {
+        return dayConsume;
+    }
+
+    public void setDayConsume(Integer dayConsume) {
+        this.dayConsume = dayConsume;
+    }
+
+    public List<VirtualType> getAnodes() {
+        return Anodes;
+    }
+
+    public void setAnodes(List<VirtualType> anodes) {
+        Anodes = anodes;
+    }
+
+    public List<VirtualType> getBnodes() {
+        return Bnodes;
+    }
+
+    public void setBnodes(List<VirtualType> bnodes) {
+        Bnodes = bnodes;
+    }
 }

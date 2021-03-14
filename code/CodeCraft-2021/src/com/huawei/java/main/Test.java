@@ -2,10 +2,11 @@ package com.huawei.java.main;
 
 import sun.jvm.hotspot.jdi.IntegerTypeImpl;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
+
+import static com.huawei.java.main.ToolsBuilder.SplitServerTypeline;
+import static com.huawei.java.main.ToolsBuilder.SplitVirtualTypeline;
 
 /**
  * @program: SDK_java
@@ -17,10 +18,38 @@ public class Test {
     public static void main(String[] args) {
         //testSpliter();
         //testGroup(0);
-        testVir();
+        read();
+       // testVir();
         System.gc();
     }
+    static void read() {
+        Scanner in = new Scanner(System.in);
+        int N,M,T,R;
+        List<ServerType> serverTypeList = new ArrayList<>();  // 用于采购的服务器类型数量
+        List<VirtualType> virtualTypeList = new ArrayList<>(); // 用于使用的虚拟机
 
+
+        N = Integer.parseInt(in.nextLine());
+        int s = 0,m = 0;
+        // 读取服务器信息
+        for (int i = 0; i < N; ++i) {
+            String str = in.nextLine();
+            ServerType serverType = SplitServerTypeline(str);
+            serverTypeList.add(serverType);
+            s += serverType.AcpuNum;
+            m += serverType.Amemory;
+        }
+
+        float cpu = (float)s/(s+m);
+        float mem = (float)m/(s+m);
+        System.out.println(cpu + " " +  mem);
+        // 读取虚拟机信息
+        M = Integer.parseInt(in.nextLine());
+        for (int i=0;i<M;++i) {
+            String str = in.nextLine();
+            virtualTypeList.add(SplitVirtualTypeline(str));
+        }
+    }
     // 字符串分隔
     static void testSpliter() {
         String str = "(host3NX39, 148, 322, 57061, 71)";
