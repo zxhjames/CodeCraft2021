@@ -5,6 +5,10 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import static com.huawei.java.main.ToolsBuilder.*;
 
+/**
+主逻辑:Code by ZhanXianghao
+**/
+
 public class Main {
     static int buycount = 0; // 记录购买的服务器总数量
 
@@ -18,14 +22,7 @@ public class Main {
         List<ServerType> ECS = new ArrayList<>(); // 已有的ECS组
         Map<String,ServerType> ECSMAP = new HashMap<>(); // 用于存储虚拟机id与ECS的映射
 
-//
-       // TreeMap<Float,String> ServerMaps = new TreeMap<>(); // 存储求出比例后的服务器信息
-//        float ServerMapsCenter ;
-      //  TreeMap<Float,String> VirtualMaps = new TreeMap<>(); // 存储求出比例后的虚拟机信息
-//        float VirtualMapsCenter;
-
-
-
+        // 读取数据 
         N = Integer.parseInt(in.nextLine());
 
         // 读取服务器信息
